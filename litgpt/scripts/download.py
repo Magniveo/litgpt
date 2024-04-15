@@ -102,8 +102,10 @@ def download_from_hub(
             torch.save(result, bin_path)
             #os.remove(safetensor_path)
             try:
-                os.remove(path)
-                os.rename(conv_path, path)
+                os.remove(safetensor_path)
+                print(f"Removed {safetensor_path}")
+                os.rename(bin_path, safetensor_path)
+                print(f"Renamed {bin_path} to {safetensor_path}")
             except:
                 break
                 pass
