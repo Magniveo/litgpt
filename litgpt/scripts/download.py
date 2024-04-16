@@ -50,16 +50,26 @@ def download_from_hub(
 
     download_files = ["tokenizer*", "generation_config.json", "config.json"]
     from_safetensors = False
+    directory = checkpoint_dir / repo_id
     if not tokenizer_only:
         bins, safetensors = find_weight_files(repo_id, access_token)
         if bins:
             # covers `.bin` files and `.bin.index.json`
             download_files.append("*.bin*")
         elif safetensors:
+            # Gather existing safetensors filenames in the local directory
+            existing_safetensors = {file.name for file in directory.glob("*.safetensors")}
+            # Assuming safetensors is a list of filenames available for download
+            # We now filter this list to exclude files that already exist locally
+            needed_safetensors = [file for file in safetensors if file not in existing_safetensors]
+            print(f"{existing_safetensors}")
+            print(f"{needed_safetensors}")
             if not _SAFETENSORS_AVAILABLE:
                 raise ModuleNotFoundError(str(_SAFETENSORS_AVAILABLE))
-            download_files.append("*.safetensors")
-            from_safetensors = True
+            if needed_safetensors:
+                download_files.append(needed_safetensors)
+            if len(safetensors)>0:
+                from_safetensors = True
         else:
             raise ValueError(f"Couldn't find weight files for {repo_id}")
 
@@ -72,7 +82,7 @@ def download_from_hub(
         constants.HF_HUB_ENABLE_HF_TRANSFER = True
         download.HF_HUB_ENABLE_HF_TRANSFER = True
 
-    directory = checkpoint_dir / repo_id
+
     with gated_repo_catcher(repo_id):
         snapshot_download(
             repo_id,
@@ -107,7 +117,7 @@ def download_from_hub(
                 os.rename(bin_path, safetensor_path)
                 print(f"Renamed {bin_path} to {safetensor_path}")
             except:
-                break
+                continue
                 pass
 
     if convert_checkpoint and not tokenizer_only:
