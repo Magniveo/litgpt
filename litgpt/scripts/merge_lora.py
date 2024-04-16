@@ -52,7 +52,7 @@ def merge_lora(
 
     # Merge LoRA weights into the base model
     pretrained_checkpoint.update(lora_checkpoint.get("model", lora_checkpoint))
-    model.load_state_dict(pretrained_checkpoint, strict=False)
+    model.load_state_dict(pretrained_checkpoint)
     merge_lora_weights(model)
 
     # Remove LoRA parameters and the LoRA linear substring
