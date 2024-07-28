@@ -269,8 +269,11 @@ class Phi1(PromptStyle):
 
 class Phi2(PromptStyle):
     def apply(self, prompt: str, **kwargs: str) -> str:
-        return f"Instruct: {prompt}\nOutput:"
+        return f"<|endoftext|><|user|>\n{prompt} <|end|>\n<|assistant|>"
 
+class Phi3(PromptStyle):
+    def apply(self, prompt: str, **kwargs: str) -> str:
+        return f"Instruct: {prompt}\nOutput:"
 
 class TinyLlama(PromptStyle):
     def apply(self, prompt: str, **kwargs: str) -> str:
@@ -310,12 +313,15 @@ prompt_styles: Dict[str, Type[PromptStyle]] = {
     "codellama": CodeLlama,
     "phi-1": Phi1,
     "phi-2": Phi2,
+    "phi-3": Phi3,
+    "phi-3": Phi3,
     "tinyllama": TinyLlama,
     "gemma": Gemma,
 }
 
 
 def model_name_to_prompt_style(model_name: str) -> PromptStyle:
+
     if re.search(r"stablelm-tuned-alpha", model_name):
         return StableLMAlpha()
     if re.search(r"stablelm-zephyr-3b", model_name):
@@ -348,6 +354,8 @@ def model_name_to_prompt_style(model_name: str) -> PromptStyle:
         return Phi1()
     if re.search("phi-2", model_name):
         return Phi2()
+    if re.search("phi-3", model_name) or re.search("phi-3-*-instruct", model_name):
+        return Phi3()
     if re.search(r"tiny-llama.*chat", model_name):
         return TinyLlama()
     if re.search(r"(Code)?Gemma.*-it", model_name):

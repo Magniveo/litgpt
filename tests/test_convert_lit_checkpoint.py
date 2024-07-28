@@ -222,7 +222,7 @@ def test_against_original_open_llama_3b():
 
 
 @torch.inference_mode()
-@pytest.mark.parametrize("model_name", ("phi-1_5", "phi-2"))
+@pytest.mark.parametrize("model_name", ("phi-1_5", "phi-2", "Phi-3-small-8k-instruct"))
 def test_against_hf_phi(model_name):
     from transformers.models.phi.configuration_phi import PhiConfig
     from transformers.models.phi.modeling_phi import PhiForCausalLM

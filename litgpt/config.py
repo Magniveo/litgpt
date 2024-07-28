@@ -1413,6 +1413,20 @@ phi = [
         lm_head_bias=True,
         gelu_approximate="tanh",
     ),
+# https://huggingface.co/microsoft/Phi-3-small-8k-instruct/blob/main/config.json
+    dict(
+        name="phi-3",
+        hf_config=dict(org="microsoft", name="Phi-3-small-8k-instruct"),
+        vocab_size=100352,
+        padded_vocab_size=51200,
+        block_size=2048,
+        n_embd=2560,
+        n_layer=32,
+        rotary_percentage=0.4,  # 32 / (n_embd / n_head) = 32 / 80
+        shared_attention_norm=True,
+        lm_head_bias=True,
+        gelu_approximate="tanh",
+    ),
 ]
 configs.extend(phi)
 

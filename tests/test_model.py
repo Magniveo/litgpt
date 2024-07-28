@@ -267,7 +267,7 @@ def test_against_hf_llama_2_and_3(ours_kwargs, device, dtype):
 
 
 @torch.inference_mode()
-@pytest.mark.parametrize("model_name", ("phi-1_5", "phi-2"))
+@pytest.mark.parametrize("model_name", ("phi-1_5", "phi-2", "Phi-3-small-8k-instruct"))
 @pytest.mark.parametrize(
     ("device", "dtype"),
     [
