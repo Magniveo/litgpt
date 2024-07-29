@@ -2,7 +2,6 @@
 
 import os
 import shutil
-import warnings
 from pathlib import Path
 from typing import List, Optional
 
@@ -50,13 +49,27 @@ def restore_default_dtype():
     torch.set_default_dtype(torch.float32)
 
 
+@pytest.fixture(autouse=True)
+def destroy_process_group():
+    yield
+
+    import torch.distributed
+
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()
+
+
 class MockTokenizer:
     """A dummy tokenizer that encodes each character as its ASCII code."""
-
+    
+    bos_id = 0
     eos_id = 1
 
-    def encode(self, text: str, eos: bool = False, max_length: int = -1) -> torch.Tensor:
-        output = [ord(c) for c in text]
+    def encode(self, text: str, bos: Optional[bool] = None, eos: bool = False, max_length: int = -1) -> torch.Tensor:
+        output = []
+        if bos:
+            output.append(self.bos_id)
+        output.extend([ord(c) for c in text])
         if eos:
             output.append(self.eos_id)
         output = output[:max_length] if max_length > 0 else output
@@ -149,7 +162,3 @@ def pytest_collection_modifyitems(items: List[pytest.Function], config: pytest.C
             bold=True,
             purple=True,  # oh yeah, branded pytest messages
         )
-
-
-# Ignore cleanup warnings from pytest (rarely happens due to a race condition when executing pytest in parallel)
-warnings.filterwarnings("ignore", category=pytest.PytestWarning, message=r".*\(rm_rf\) error removing.*")

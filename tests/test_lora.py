@@ -9,13 +9,13 @@ from unittest.mock import Mock
 import pytest
 import torch
 import yaml
-from conftest import RunIf
 from lightning import Fabric
 from lightning.fabric.plugins.precision.bitsandbytes import _BITSANDBYTES_AVAILABLE, BitsandbytesPrecision
 from lightning.fabric.wrappers import _FabricOptimizer
 from torch._dynamo.backends import debugging
 from torch.nn import functional as F
 from transformers.models.gemma import GemmaConfig, GemmaForCausalLM
+from transformers.models.gemma2 import Gemma2Config, Gemma2ForCausalLM
 from transformers.models.mixtral import MixtralConfig, MixtralForCausalLM
 
 import litgpt.config as config_module
@@ -26,7 +26,8 @@ from litgpt.lora import GPT as LoRAGPT
 from litgpt.lora import CausalSelfAttention as LoRACausalSelfAttention
 from litgpt.lora import Config, LoRALinear, LoRAQKVLinear, lora_filter, mark_only_lora_as_trainable, merge_lora_weights
 from litgpt.model import GPT as BaseGPT
-from litgpt.scripts.convert_hf_checkpoint import copy_weights_hf_llama
+from litgpt.scripts.convert_hf_checkpoint import copy_weights_gemma_2, copy_weights_hf_llama
+from tests.conftest import RunIf
 
 
 def test_lora_layer_replacement():
@@ -107,7 +108,7 @@ def test_lora_mqa_gqa():
     assert attn.linear.weight.shape == (24, 8)
     assert attn.lora_A.shape == (4, 8)
     assert attn.lora_B.shape == (16, 2)
-    assert attn.lora_ind == lora_ind
+    assert torch.equal(attn.lora_ind, torch.tensor(lora_ind))
     x = torch.randint(0, 8, size=(3, 5, 16), dtype=torch.int64)
     assert attn.zero_pad(x).shape == (3, 5, 24)
     bsz, ctx_len, in_dim = 2, 30, 8
@@ -128,7 +129,7 @@ def test_lora_mqa_gqa():
     assert attn.linear.weight.shape == (12, 8)
     assert attn.lora_A.shape == (4, 8)
     assert attn.lora_B.shape == (10, 2)
-    assert attn.lora_ind == lora_ind
+    assert torch.equal(attn.lora_ind, torch.tensor(lora_ind))
     x = torch.randint(0, 8, size=(3, 5, 10), dtype=torch.int64)
     assert attn.zero_pad(x).shape == (3, 5, 12)
     bsz, ctx_len, in_dim = 2, 30, 8
@@ -149,7 +150,7 @@ def test_lora_mqa_gqa():
     assert attn.linear.weight.shape == (16, 8)
     assert attn.lora_A.shape == (4, 8)
     assert attn.lora_B.shape == (12, 2)
-    assert attn.lora_ind == lora_ind
+    assert torch.equal(attn.lora_ind, torch.tensor(lora_ind))
     x = torch.randint(0, 8, size=(3, 5, 12), dtype=torch.int64)
     assert attn.zero_pad(x).shape == (3, 5, 16)
     bsz, ctx_len, in_dim = 2, 30, 8
@@ -192,12 +193,12 @@ def test_lora_script(tmp_path, fake_checkpoint_dir, monkeypatch, alpaca_path):
 
     out_dir = tmp_path / "out"
     stdout = StringIO()
-    with redirect_stdout(stdout), mock.patch("sys.argv", ["lora.py"]):
+    with redirect_stdout(stdout), mock.patch("sys.argv", ["lora.py", str(fake_checkpoint_dir)]):
         module.setup(
+            fake_checkpoint_dir,
             data=Alpaca(
                 download_dir=alpaca_path.parent, file_name=alpaca_path.name, val_split_fraction=0.5, num_workers=0
             ),
-            checkpoint_dir=fake_checkpoint_dir,
             out_dir=out_dir,
             precision="32-true",
             train=TrainArgs(global_batch_size=1, save_interval=2, epochs=1, max_steps=6, micro_batch_size=1),
@@ -464,7 +465,7 @@ def test_lora_gpt_init_weights():
 
 @pytest.mark.parametrize("name", [c["name"] for c in config_module.configs])
 def test_base_model_can_be_lora_loaded(name):
-    kwargs = {"n_layer": 2, "n_head": 8, "n_embd": 16, "padded_vocab_size": 32}
+    kwargs = {"n_layer": 2, "n_head": 8, "n_query_groups": 4, "n_embd": 16, "padded_vocab_size": 32}
     base_model = BaseGPT.from_name(name, **kwargs)
     base_model_state_dict = base_model.state_dict()
     lora_model = LoRAGPT.from_name(
@@ -621,6 +622,61 @@ def test_against_hf_gemma(model_name):
     torch.testing.assert_close(ours_y, theirs_y)
 
 
+@torch.inference_mode()
+@pytest.mark.parametrize("model_name", ("gemma-2-9b", "gemma-2-27b"))
+def test_against_original_gemma_2(model_name):
+    device = torch.device("cpu")
+    dtype = torch.float32
+    T = 20
+    ours_config = Config.from_name(
+        model_name,
+        block_size=T,
+        sliding_window_size=T // 2,
+        n_layer=2,
+        n_head=16,
+        n_embd=32,
+        intermediate_size=86,
+    )
+    theirs_config = Gemma2Config(
+        vocab_size=ours_config.padded_vocab_size,
+        hidden_size=ours_config.n_embd,
+        head_dim=ours_config.head_size,
+        num_attention_heads=ours_config.n_head,
+        num_hidden_layers=ours_config.n_layer,
+        intermediate_size=ours_config.intermediate_size,
+        max_position_embeddings=ours_config.block_size,
+        sliding_window=ours_config.sliding_window_size,
+        rms_norm_eps=ours_config.norm_eps,
+        num_key_value_heads=ours_config.n_query_groups,
+        rope_theta=ours_config.rope_base,
+        attention_bias=ours_config.bias,
+        tie_word_embeddings=True,
+        hidden_act="gelu_pytorch_tanh",
+        attn_logit_softcapping=ours_config.attention_logit_softcapping,
+        final_logit_softcapping=ours_config.final_logit_softcapping,
+        initializer_range=1.0,  # to make the affect of attention_logit_softcapping more prominent
+        attn_implementation="eager",
+        query_pre_attn_scalar=ours_config.attention_scores_scalar,
+    )
+    assert ours_config.intermediate_size == theirs_config.intermediate_size
+
+    theirs_model = Gemma2ForCausalLM(theirs_config).to(device)
+    theirs_state_dict = theirs_model.state_dict()
+    # Gemma weights are shipped without `lm_head.weight`
+    theirs_state_dict.pop("lm_head.weight")
+    state_dict = {}
+    copy_weights_gemma_2(ours_config, {}, state_dict, theirs_state_dict)
+    ours_model = LoRAGPT(ours_config).to(device)
+    ours_model.load_state_dict(state_dict)
+
+    # test end to end
+    x = torch.randint(low=0, high=ours_config.padded_vocab_size, size=(T,), device=device).unsqueeze(0)
+    assert x.size(1) == T
+    ours_y = ours_model(x)
+    theirs_y = theirs_model(x)["logits"].to(dtype)  # HF converts logits to float
+    torch.testing.assert_close(ours_y, theirs_y)
+
+
 @RunIf(min_cuda_gpus=1)
 def test_lora_bitsandbytes(monkeypatch, tmp_path, fake_checkpoint_dir, alpaca_path):
     if not _BITSANDBYTES_AVAILABLE:
@@ -655,12 +711,12 @@ def test_lora_bitsandbytes(monkeypatch, tmp_path, fake_checkpoint_dir, alpaca_pa
     monkeypatch.setattr(module, "fit", train_mock)
 
     stdout = StringIO()
-    with redirect_stdout(stdout), mock.patch("sys.argv", ["full.py"]):
+    with redirect_stdout(stdout), mock.patch("sys.argv", ["full.py", str(fake_checkpoint_dir)]):
         module.setup(
+            fake_checkpoint_dir,
             data=Alpaca(
                 download_dir=alpaca_path.parent, file_name=alpaca_path.name, val_split_fraction=0.5, num_workers=0
             ),
-            checkpoint_dir=fake_checkpoint_dir,
             out_dir=tmp_path,
             precision="16-true",
             quantize="bnb.nf4-dq",
@@ -733,3 +789,38 @@ def test_lora_bitsandbytes(monkeypatch, tmp_path, fake_checkpoint_dir, alpaca_pa
     logs = stdout.getvalue()
     assert "of trainable parameters: 512" in logs
     assert "of non-trainable parameters: 1,888" in logs
+
+
+@RunIf(standalone=True, min_cuda_gpus=2)
+def test_lora_model_fsdp_init():
+    config = Config(
+        n_layer=1,
+        n_head=2,
+        n_embd=8,
+        block_size=8,
+        vocab_size=8,
+        lora_r=8,
+        lora_alpha=8,
+        lora_dropout=0.1,
+        lora_query=True,
+        lora_value=False,
+        lora_projection=True,
+    )
+    fabric = Fabric(devices=2, strategy="fsdp", precision="16-true")
+    fabric.launch()
+    with fabric.init_module(empty_init=True):
+        model = LoRAGPT(config)
+    x = torch.randint(0, config.padded_vocab_size, size=(2, config.block_size), dtype=torch.int64, device=fabric.device)
+    model = fabric.setup(model)
+    y = model(x)
+    assert y.shape == torch.Size([2, 8, 512])
+
+    # verify that all the parameters, buffers and other attributes aren't on `meta` device
+    for m in model.modules():
+        for p_name, parameter in m.named_parameters():
+            assert not parameter.is_meta, f"Parameter `{p_name}` isn't materialized."
+        for b_name, buffer in m._buffers.items():
+            assert not buffer.is_meta, f"Buffer `{b_name}` isn't materialized."
+        for attr_name, attr_value in m.__dict__.items():
+            if isinstance(attr_value, torch.Tensor):
+                assert not attr_value.is_meta, f"Attribute `{attr_name}` isn't materialized."
