@@ -1587,6 +1587,22 @@ phi = [
         mlp_class_name="LLaMAMLP",
         parallel_residual=False,
     ),
+# https://huggingface.co/microsoft/Phi-3-small-8k-instruct/blob/main/config.json
+    dict(
+            name="Phi-3-small-8k-instruct",
+            hf_config=dict(org="microsoft", name="Phi-3-small-8k-instruct"),
+            vocab_size=100352,
+            padded_vocab_size=100352,
+            block_size=8192,
+            n_embd=4096,
+            n_layer=32,
+            rotary_percentage=1.0,
+            bias=False,
+            norm_class_name="RMSNorm",
+            intermediate_size=14336,
+            mlp_class_name="LLaMAMLP",
+            parallel_residual=False,
+        ),
 ]
 configs.extend(phi)
 
