@@ -64,7 +64,6 @@ def test_prompt_style_from_config():
         "phi-1_5",
         "phi-2",
         "Phi-3-mini-4k-instruct",
-        "Phi-3-small-8k-instruct",
         "Mistral-7B-Instruct-v0.1",
         "Mistral-7B-Instruct-v0.2",
         "tiny-llama-1.1b-chat",

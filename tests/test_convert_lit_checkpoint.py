@@ -260,7 +260,7 @@ def test_against_hf_phi(model_name):
 
 
 @torch.inference_mode()
-@pytest.mark.parametrize("model_name", ("Phi-3-mini-4k-instruct", "Phi-3-small-8k-instruct"))
+@pytest.mark.parametrize("model_name", ("Phi-3-mini-4k-instruct",))
 def test_against_hf_phi_3(model_name):
     from transformers.models.phi3.configuration_phi3 import Phi3Config
     from transformers.models.phi3.modeling_phi3 import Phi3ForCausalLM
@@ -390,7 +390,7 @@ def test_against_original_gemma(model_name, device, dtype):
 
 
 @torch.inference_mode()
-@pytest.mark.parametrize("model_name", ("gemma-2-9b", "gemma-2-27b"))
+@pytest.mark.parametrize("model_name", ("gemma-2-2b", "gemma-2-9b", "gemma-2-27b"))
 @pytest.mark.parametrize(
     ("device", "dtype"),
     [

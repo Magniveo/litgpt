@@ -6,7 +6,7 @@ from typing import Optional, Tuple, Union
 
 from torch.utils.data import DataLoader
 
-from litgpt import Tokenizer
+from litgpt.tokenizer import Tokenizer
 from litgpt.data import DataModule
 
 
@@ -31,6 +31,7 @@ class LitData(DataModule):
     seq_length: int = field(init=False, repr=False, default=2048)
 
     def __post_init__(self) -> None:
+        super().__init__()
         if self.split_names is not None and len(self.split_names) != 2:
             raise ValueError("If provided `split_names` must be a tuple of two strings, for example: ('train', 'val').")
 

@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 from torch.utils.data import DataLoader
 
-from litgpt import Tokenizer
+from litgpt.tokenizer import Tokenizer
 from litgpt.data import DataModule
 
 
@@ -30,6 +30,7 @@ class OpenWebText(DataModule):
     seq_length: int = field(default=2048, repr=False, init=False)
 
     def __post_init__(self) -> None:
+        super().__init__()
         # Could be a remote path (s3://) or a local path
         self.data_path_train = str(self.data_path).rstrip("/") + "/train"
         self.data_path_val = str(self.data_path).rstrip("/") + "/val"

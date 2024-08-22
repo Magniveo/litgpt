@@ -8,8 +8,6 @@ from typing import Any, Literal, Optional, Type, Union
 import torch
 import yaml
 from typing_extensions import Self
-
-import litgpt.model
 from litgpt.utils import find_multiple
 
 
@@ -144,6 +142,7 @@ class Config:
     @property
     def mlp_class(self) -> Type:
         # `self.mlp_class_name` cannot be the type to keep the config serializable
+        import litgpt.model
         return getattr(litgpt.model, self.mlp_class_name)
 
     @property
@@ -1003,6 +1002,34 @@ gemma = [
         gelu_approximate="tanh",
         intermediate_size=24576,
     ),
+    # https://huggingface.co/google/gemma-2-2b/blob/main/config.json
+    dict(
+        name="Gemma-2-2b",
+        hf_config=dict(org="google", name="gemma-2-2b"),
+        scale_embeddings=True,
+        attention_scores_scalar=256,
+        vocab_size=256000,
+        block_size=8192,
+        sliding_window_size=4096,
+        # only layer with idx 0, 2, 4, ... have sliding window attention
+        sliding_window_layer_placing="interleaved",
+        intermediate_size=9216,
+        n_embd=2304,
+        n_layer=26,
+        n_head=8,
+        n_query_groups=4,
+        head_size=256,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        norm_class_name="RMSNorm",
+        mlp_class_name="GemmaMLP",
+        gelu_approximate="tanh",
+        post_attention_norm=True,
+        post_mlp_norm=True,
+        attention_logit_softcapping=50.0,
+        final_logit_softcapping=30.0,
+    ),
     # https://huggingface.co/google/gemma-2-9b/blob/main/config.json
     dict(
         name="Gemma-2-9b",
@@ -1603,6 +1630,22 @@ phi = [
             mlp_class_name="LLaMAMLP",
             parallel_residual=False,
         ),
+    # https://huggingface.co/microsoft/Phi-3.5-mini-instruct/blob/main/config.json
+    dict(
+        name="Phi-3.5-mini-instruct",
+        hf_config=dict(org="microsoft", name="Phi-3.5-mini-instruct"),
+        vocab_size=32000,
+        padded_vocab_size=32064,
+        block_size=4096,
+        n_embd=3072,
+        n_layer=32,
+        rotary_percentage=1.0,
+        bias=False,
+        norm_class_name="RMSNorm",
+        intermediate_size=8192,
+        mlp_class_name="LLaMAMLP",
+        parallel_residual=False,
+    ),
 ]
 configs.extend(phi)
 
@@ -1743,6 +1786,26 @@ configs.append(
         norm_eps=1e-05,
         mlp_class_name="LLaMAMLP",
         intermediate_size=14336,
+    )
+)
+configs.append(
+    # https://huggingface.co/mistralai/Mistral-Large-Instruct-2407/blob/main/config.json
+    dict(
+        name="Mistral-Large-Instruct-2407",
+        hf_config=dict(org="mistralai", name="Mistral-Large-Instruct-2407"),
+        padded_vocab_size=32768,
+        block_size=32768,
+        n_layer=88,
+        n_head=96,
+        n_embd=12288,
+        n_query_groups=8,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        norm_class_name="RMSNorm",
+        norm_eps=1e-05,
+        mlp_class_name="LLaMAMLP",
+        intermediate_size=28672,
     )
 )
 

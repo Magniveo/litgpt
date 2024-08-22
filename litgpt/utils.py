@@ -80,14 +80,25 @@ def reset_parameters(module: nn.Module) -> None:
             mod.reset_parameters()
 
 
-def check_valid_checkpoint_dir(checkpoint_dir: Path, model_filename: str = "lit_model.pth", verbose: bool = True, raise_error: bool = False) -> None:
+def check_valid_checkpoint_dir(
+        checkpoint_dir: Path,
+        model_filename: str = "lit_model.pth",
+        verbose: bool = True,
+        raise_error: bool = False,
+        ignore_tokenizer_files: bool = False
+    ) -> None:
+
     files = {
         model_filename: (checkpoint_dir / model_filename).is_file(),
         "model_config.yaml": (checkpoint_dir / "model_config.yaml").is_file(),
-        "tokenizer.json OR tokenizer.model": (checkpoint_dir / "tokenizer.json").is_file()
-        or (checkpoint_dir / "tokenizer.model").is_file(),
-        "tokenizer_config.json": (checkpoint_dir / "tokenizer_config.json").is_file(),
     }
+    if not ignore_tokenizer_files:
+        files.update({
+            "tokenizer.json OR tokenizer.model": (checkpoint_dir / "tokenizer.json").is_file() or
+                                                (checkpoint_dir / "tokenizer.model").is_file(),
+            "tokenizer_config.json": (checkpoint_dir / "tokenizer_config.json").is_file(),
+        })
+
     if checkpoint_dir.is_dir():
         if all(files.values()):
             # we're good
@@ -574,12 +585,12 @@ def check_file_size_on_cpu_and_warn(checkpoint_path, device, size_limit=4_509_71
     return size
 
 
-def auto_download_checkpoint(model_name, access_token=None):
+def auto_download_checkpoint(model_name, access_token=None, ignore_tokenizer_files=False):
     from litgpt.scripts.download import download_from_hub  # moved here due to circular import issue
 
     checkpoint_dir = extend_checkpoint_dir(Path(model_name))
     try:
-        check_valid_checkpoint_dir(checkpoint_dir, verbose=False, raise_error=True)
+        check_valid_checkpoint_dir(checkpoint_dir, verbose=False, raise_error=True, ignore_tokenizer_files=ignore_tokenizer_files)
     except FileNotFoundError as e:
         if access_token is None:
             access_token = os.getenv("HF_TOKEN")
@@ -617,13 +628,9 @@ def check_nvlink_connectivity(fabric=None):
             gpu_regex = re.compile(r'^GPU\d+$')
             gpu_count = len([header for header in headers if gpu_regex.match(header)])
 
-            for line in lines[start_index:]:
-                if not line.strip():
-                    break
-                gpu_matrix.append(line.strip())
-
             all_nvlink = True
-            for line in gpu_matrix:
+            for line in lines[start_index:start_index + gpu_count]:
+                gpu_matrix.append(line.strip())
                 connections = line.split()[1:1 + gpu_count]
                 if not all("NV" in conn for conn in connections if conn != "X"):
                     all_nvlink = False
@@ -636,9 +643,6 @@ def check_nvlink_connectivity(fabric=None):
                     "Warning: Not all GPUs are fully connected via NVLink. Some GPUs are connected via slower interfaces. "
                     "It is recommended to switch to a different machine with faster GPU connections for optimal multi-GPU training performance."
                 )
-
-        except Exception as e:
-            custom_print(f"An error occurred: {e}")
 
         except Exception as e:
             custom_print(f"An error occurred: {e}")

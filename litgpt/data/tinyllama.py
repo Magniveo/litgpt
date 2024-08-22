@@ -5,7 +5,7 @@ from typing import Optional, Union
 
 from torch.utils.data import DataLoader
 
-from litgpt import Tokenizer
+from litgpt.tokenizer import Tokenizer
 from litgpt.data import DataModule
 
 
@@ -31,6 +31,7 @@ class TinyLlama(DataModule):
     seq_length: int = field(init=False, repr=False, default=2048)
 
     def __post_init__(self):
+        super().__init__()
         # Could be a remote path (s3://) or a local path
         self.slimpajama_train = str(self.data_path).rstrip("/") + "/slimpajama/train"
         self.slimpajama_val = str(self.data_path).rstrip("/") + "/slimpajama/val"

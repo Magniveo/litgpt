@@ -8,7 +8,7 @@ from typing import Optional
 
 from torch.utils.data import DataLoader
 
-from litgpt import Tokenizer
+from litgpt.tokenizer import Tokenizer
 from litgpt.data import DataModule
 
 
@@ -36,6 +36,7 @@ class TextFiles(DataModule):
     max_seq_length: int = field(default=-1, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        super().__init__()
         self.out_path_train = self.train_data_path / "train"
         if self.val_data_path is None:
             self.out_path_val = self.train_data_path / "val"
