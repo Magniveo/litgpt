@@ -115,7 +115,7 @@ class LLM(torch.nn.Module):
                 new_key = key.replace(prefix, "", 1)
                 state_dict[new_key] = state_dict.pop(key)
 
-            self.load_state_dict(state_dict, strict=True)   
+            self.load_state_dict(state_dict, strict=True)
 
         elif self.checkpoint_dir is not None:
             state_dict = torch.load(self.checkpoint_dir / "lit_model.pth", weights_only=False)
@@ -349,6 +349,7 @@ class LLM(torch.nn.Module):
             )
         else:
             fabric = L.Fabric(
+                accelerator=accelerator,
                 devices=total_devices,
                 strategy="ddp",
                 precision=precision,

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Optional, Union, Iterable, Iterator
 
+from litgpt.utils import fix_and_load_json
 import torch
 
 
@@ -37,8 +38,13 @@ class Tokenizer:
                 self.bos_id = self.token_to_id(bos_token) if bos_token is not None else None
                 self.eos_id = self.token_to_id(eos_token) if eos_token is not None else None
             if (special_tokens_path := checkpoint_dir / "generation_config.json").is_file():
-                with open(special_tokens_path, encoding="utf-8") as fp:
-                    config = json.load(fp)
+                try:
+                    with open(special_tokens_path, encoding="utf-8") as fp:
+                        config = json.load(fp)
+                except json.JSONDecodeError:  # Some files like the Llama 3.2 one have bugs
+                    with open(special_tokens_path, encoding="utf-8") as fp:
+                        json_string = fp.read()
+                        config = fix_and_load_json(json_string)
                 if self.bos_id is None:
                     self.bos_id = config.get("bos_token_id")
                 if self.eos_id is None:
@@ -88,7 +94,7 @@ class Tokenizer:
             config = json.load(fp)
         # for LlaMA-3 tokenizer there is no `add_bos_token` at all and `tokenizer_class` is only
         # `PreTrainedTokenizerFast`
-        if checkpoint_dir.stem.startswith("Meta-Llama-3"):
+        if checkpoint_dir.stem.startswith(("Meta-Llama-3", "Llama-3")):
             return True
         if "add_bos_token" in config:
             return config["add_bos_token"]
@@ -137,7 +143,7 @@ class Tokenizer:
             return self.processor.decode([dummy_token_id] + tokens)[len(dummy_token) :]
         return self.processor.decode(tokens)
 
-    def decode_stream(self, token_stream: Iterable[torch.Tensor]) -> Iterator[str]:
+    def decode_stream(self, token_stream: Iterable[torch.Tensor], device: Optional[torch.device] = None) -> Iterator[str]:
         if self.backend == "huggingface":
             try:
                 for token in token_stream:
@@ -150,7 +156,7 @@ class Tokenizer:
 
             # sentencepiece does not support decoding token-by-token because it adds spaces based on the surrounding tokens
             # meaning that we need to decode everything each time
-            so_far = torch.tensor([], dtype=torch.long, device=fabric.device)
+            so_far = torch.tensor([], dtype=torch.long, device=device)
             decoded_so_far = ""
             try:
                 for token in token_stream:

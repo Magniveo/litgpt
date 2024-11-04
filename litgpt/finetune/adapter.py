@@ -31,6 +31,7 @@ from litgpt.utils import (
     choose_logger,
     chunked_cross_entropy,
     copy_config_files,
+    create_finetuning_performance_report,
     get_default_supported_precision,
     init_out_dir,
     instantiate_torch_optimizer,
@@ -39,6 +40,7 @@ from litgpt.utils import (
     num_parameters,
     parse_devices,
     save_hyperparameters,
+    select_sft_generate_example,
 )
 
 
@@ -172,9 +174,15 @@ def main(
     fabric.print(f"Number of non-trainable parameters: {num_parameters(model, requires_grad=False):,}")
 
     model = fabric.setup_module(model)
-
     if isinstance(fabric.strategy.precision, BitsandbytesPrecision):
         optimizer = instantiate_bnb_optimizer(optimizer, model.parameters())
+
+        from bitsandbytes.nn import StableEmbedding
+        old_embedding = model.transformer.wte
+        model.transformer.wte = StableEmbedding(old_embedding.num_embeddings, old_embedding.embedding_dim)
+        with torch.no_grad():
+            model.transformer.wte.weight.copy_(old_embedding.weight)
+        model.transformer.wte = model.transformer.wte.to(device=old_embedding.weight.device, dtype=old_embedding.weight.dtype)
     else:
         optimizer = instantiate_torch_optimizer(optimizer, model.parameters())
 
@@ -185,7 +193,7 @@ def main(
     load_checkpoint(fabric, model, checkpoint_path, strict=False)
 
     train_time = time.perf_counter()
-    fit(
+    token_counts = fit(
         fabric,
         model,
         optimizer,
@@ -199,9 +207,9 @@ def main(
         eval,
         data,
     )
-    fabric.print(f"Training time: {(time.perf_counter() - train_time):.2f}s")
-    if fabric.device.type == "cuda":
-        fabric.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
+    training_time = time.perf_counter() - train_time
+    output = create_finetuning_performance_report(training_time, token_counts, fabric.device.type)
+    fabric.print(output)
 
     # Final evaluation
     if eval.final_validation:
@@ -262,10 +270,18 @@ def fit(
     total_lengths = 0
     total_t0 = time.perf_counter()
 
-    while step_count < max_steps and train_iterator.epoch < train.epochs:
+    token_counts = {
+        "raw_tokens": torch.tensor(0, device=fabric.device, dtype=torch.long),
+        "raw_tokens_plus_prompt_template": torch.tensor(0, device=fabric.device, dtype=torch.long),
+        "raw_tokens_plus_prompt_template_and_padding": torch.tensor(0, device=fabric.device, dtype=torch.long),
+    }
+
+    while step_count < max_steps:
         iter_num += 1
         iter_t0 = time.perf_counter()
         batch = next(train_iterator)
+        if train_iterator.epoch >= train.epochs:
+            break
         input_ids, targets = batch["input_ids"], batch["labels"]
 
         is_accumulating = iter_num % train.gradient_accumulation_iters(devices) != 0
@@ -284,6 +300,10 @@ def fit(
             scheduler.step()
             step_count += 1
 
+        token_counts["raw_tokens"] += batch["token_counts"]["raw"].sum().item()
+        token_counts["raw_tokens_plus_prompt_template"] += batch["token_counts"]["raw_plus_prompt_template"].sum().item()
+        token_counts["raw_tokens_plus_prompt_template_and_padding"] += input_ids.numel()
+
         total_lengths += input_ids.numel()
         if iter_num % train.log_interval == 0:
             loss = running_loss.compute().item()  # expensive device-to-host synchronization
@@ -298,8 +318,8 @@ def fit(
                 "step": step_count,
                 "epoch": train_iterator.epoch,
                 "iter_time": t1 - iter_t0,
-                "tokens": iter_num * train.micro_batch_size * model.config.block_size,
-                "total_tokens": (iter_num * train.micro_batch_size * model.config.block_size * fabric.world_size),
+                "tokens": token_counts["raw_tokens_plus_prompt_template"],
+                "total_tokens": token_counts["raw_tokens_plus_prompt_template"] * fabric.world_size,
                 "learning_rate": scheduler.get_last_lr()[0],
             }
             if isinstance(val_loss, torch.Tensor):
@@ -332,7 +352,15 @@ def fit(
                 save_hyperparameters(setup, checkpoint_file.parent)
                 save_prompt_style(data.prompt_style, checkpoint_file.parent)
 
+    total_token_counts = {}
+    for key in token_counts:
+        total = fabric.all_reduce(token_counts[key], reduce_op="sum")
+        total_token_counts[key] = total.item()
 
+    return total_token_counts
+
+
+# FSDP has issues with `inference_mode`
 @torch.no_grad()
 def validate(fabric: L.Fabric, model: GPT, val_dataloader: DataLoader, eval: EvalArgs, verbose: bool = True) -> torch.Tensor:
     if verbose:
@@ -354,7 +382,7 @@ def validate(fabric: L.Fabric, model: GPT, val_dataloader: DataLoader, eval: Eva
 # the adapter "kv cache" cannot be initialized under `inference_mode`
 @torch.no_grad()
 def generate_example(fabric: L.Fabric, model: GPT, tokenizer: Tokenizer, eval: EvalArgs, data: DataModule):
-    instruction = "Recommend a movie for me to watch during the weekend and explain the reason."
+    instruction = select_sft_generate_example(eval, data)
     fabric.print(instruction)
     prompt = data.prompt_style.apply(instruction)
     encoded = tokenizer.encode(prompt, device=fabric.device)
@@ -376,7 +404,7 @@ def generate_example(fabric: L.Fabric, model: GPT, tokenizer: Tokenizer, eval: E
         model.clear_kv_cache()
         model.train()
         output = tokenizer.decode(output)
-        fabric.print(output)
+        fabric.print(f"{output}\n")
     else:
         print(
             f"Length of encoded instruction ({len(encoded)}) and eval.max_new_tokens ({eval.max_new_tokens}) "

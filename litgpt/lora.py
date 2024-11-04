@@ -338,8 +338,13 @@ class LoRAQKVLinear(LoRALinear):
         # Then x has embeddings_size of 256 (2 * 128 as enable_lora only for query and value, not keys) and expected
         # embeddings_size is 384 (self.linear.out_features), so that means that we need to pad from 256 to 384 with zeros, but
         # only for key updates (this is where self.lora_ind comes in handy)
+
         result = x.new_zeros(*x.shape[:-1], self.linear.out_features)  # (64, 64, 384)
-        return result.index_copy_(dim=-1, index=self.lora_ind, source=x)  # (64, 64, 384)
+        if result.device.type == "mps":
+            result[..., self.lora_ind] = x
+            return result
+        else:
+            return result.index_copy_(dim=-1, index=self.lora_ind, source=x)  # (64, 64, 384)
 
     def conv1d(self, input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
         """An extension of the `torch.nn.functional.conv1d` function with a logic specific to grouped queries.
