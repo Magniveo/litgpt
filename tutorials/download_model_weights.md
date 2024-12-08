@@ -20,20 +20,27 @@ LitGPT supports a variety of LLM architectures with publicly available weights. 
 | Llama 3 | 8B, 70B | Meta AI | [Meta AI 2024](https://github.com/meta-llama/llama3)                                                                                   |
 | Llama 3.1 | 8B, 70B, 405B | Meta AI | [Meta AI 2024](https://github.com/meta-llama/llama3)                                                                           |
 | Llama 3.2 | 1B, 3B | Meta AI | [Meta AI 2024](https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md)                                    |
+| Llama 3.3 | 70B | Meta AI | [Meta AI 2024](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct)                                                                                 |
 | Llama 3.1 Nemotron | 70B | NVIDIA | [NVIDIA AI 2024](https://build.nvidia.com/nvidia/llama-3_1-nemotron-70b-instruct/modelcard) |
 | LongChat | 7B, 13B | LMSYS | [LongChat Team 2023](https://lmsys.org/blog/2023-06-29-longchat/)                                                                       |
 | Mathstral | 7B | Mistral AI | [Mistral AI 2024](https://mistral.ai/news/mathstral/)                                                                        |
 | MicroLlama | 300M | Ken Wang | [MicroLlama repo](https://github.com/keeeeenw/MicroLlama)
 | Mixtral MoE | 8x7B | Mistral AI | [Mistral AI 2023](https://mistral.ai/news/mixtral-of-experts/)                                                                     |
 | Mistral | 7B, 123B | Mistral AI | [Mistral AI 2023](https://mistral.ai/news/announcing-mistral-7b/)                                                                        |
+| Mixtral MoE | 8x22B | Mistral AI | [Mistral AI 2024](https://mistral.ai/news/mixtral-8x22b/)                                                                         |
 | Nous-Hermes | 7B, 13B, 70B | NousResearch | [Org page](https://huggingface.co/NousResearch)                                                                          |
+| OLMo | 1B, 7B | Allen Institute for AI (AI2) | [Groeneveld et al. 2024](https://aclanthology.org/2024.acl-long.841/)     |
 | OpenLLaMA | 3B, 7B, 13B | OpenLM Research | [Geng & Liu 2023](https://github.com/openlm-research/open_llama)                                                         |
 | Phi 1.5 & 2 | 1.3B, 2.7B | Microsoft Research  | [Li et al. 2023](https://arxiv.org/abs/2309.05463)                                                                          |
 | Phi 3 & 3.5 | 3.8B | Microsoft Research | [Abdin et al. 2024](https://arxiv.org/abs/2404.14219)
 | Platypus | 7B, 13B, 70B |  Lee et al. | [Lee, Hunter, and Ruiz 2023](https://arxiv.org/abs/2308.07317)                                                               |
 | Pythia | {14,31,70,160,410}M, {1,1.4,2.8,6.9,12}B | EleutherAI | [Biderman et al. 2023](https://arxiv.org/abs/2304.01373)                                            |
+| Qwen2.5 | 0.5B, 1.5B, 3B, 7B, 14B, 32B, 72B | Alibaba Group | [Qwen Team 2024](https://qwenlm.github.io/blog/qwen2.5/)                                               |
+| Qwen2.5 Coder | 0.5B, 1.5B, 3B, 7B, 14B, 32B | Alibaba Group | [Hui, Binyuan et al. 2024](https://arxiv.org/abs/2409.12186)                                          |
+| QwQ | 32B | Alibaba Group | [Qwen Team 2024](https://qwenlm.github.io/blog/qwq-32b-preview/)                                                                         |
 | RedPajama-INCITE | 3B, 7B | Together | [Together 2023](https://together.ai/blog/redpajama-models-v1)                                                                 |
 | StableCode | 3B | Stability AI | [Stability AI 2023](https://stability.ai/blog/stablecode-llm-generative-ai-coding)                                                  |
+| Salamandra | 2B, 7B | Barcelona Supercomputing Centre | [BSC-LTC 2024](https://github.com/BSC-LTC/salamandra)                                                                         |
 | StableLM  | 3B, 7B | Stability AI | [Stability AI 2023](https://github.com/Stability-AI/StableLM)                                                                    |
 | StableLM Zephyr | 3B | Stability AI | [Stability AI 2023](https://stability.ai/blog/stablecode-llm-generative-ai-coding)                                             |
 | TinyLlama | 1.1B | Zhang et al. | [Zhang et al. 2023](https://github.com/jzhang38/TinyLlama)                                                                         |
@@ -54,6 +61,13 @@ litgpt download list
 The output is shown below:
 
 ```
+allenai/OLMo-1B-hf
+allenai/OLMo-7B-hf
+allenai/OLMo-7B-Instruct-hf
+bsc-lt/salamandra-2b
+bsc-lt/salamandra-2b-instruct
+bsc-lt/salamandra-7b
+bsc-lt/salamandra-7b-instruct
 codellama/CodeLlama-13b-hf
 codellama/CodeLlama-13b-Instruct-hf
 codellama/CodeLlama-13b-Python-hf
@@ -126,6 +140,7 @@ meta-llama/Llama-3.2-1B
 meta-llama/Llama-3.2-1B-Instruct
 meta-llama/Llama-3.2-3B
 meta-llama/Llama-3.2-3B-Instruct
+meta-llama/Llama-3.3-70B-Instruct
 meta-llama/Meta-Llama-3-70B
 meta-llama/Meta-Llama-3-70B-Instruct
 meta-llama/Meta-Llama-3-8B
@@ -150,6 +165,8 @@ mistralai/Mistral-7B-v0.3
 mistralai/Mistral-Large-Instruct-2407
 mistralai/Mixtral-8x7B-Instruct-v0.1
 mistralai/Mixtral-8x7B-v0.1
+mistralai/Mixtral-8x22B-Instruct-v0.1
+mistralai/Mixtral-8x22B-v0.1
 NousResearch/Nous-Hermes-13b
 NousResearch/Nous-Hermes-llama-2-7b
 NousResearch/Nous-Hermes-Llama2-13b
@@ -157,6 +174,33 @@ nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
 openlm-research/open_llama_13b
 openlm-research/open_llama_3b
 openlm-research/open_llama_7b
+Qwen/Qwen2.5-0.5B
+Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen2.5-1.5B
+Qwen/Qwen2.5-1.5B-Instruct
+Qwen/Qwen2.5-3B
+Qwen/Qwen2.5-3B-Instruct
+Qwen/Qwen2.5-7B
+Qwen/Qwen2.5-7B-Instruct
+Qwen/Qwen2.5-14B
+Qwen/Qwen2.5-14B-Instruct
+Qwen/Qwen2.5-32B
+Qwen/Qwen2.5-32B-Instruct
+Qwen/Qwen2.5-72B
+Qwen/Qwen2.5-72B-Instruct
+Qwen/Qwen2.5-Coder-0.5B
+Qwen/Qwen2.5-Coder-0.5B-Instruct
+Qwen/Qwen2.5-Coder-1.5B
+Qwen/Qwen2.5-Coder-1.5B-Instruct
+Qwen/Qwen2.5-Coder-3B
+Qwen/Qwen2.5-Coder-3B-Instruct
+Qwen/Qwen2.5-Coder-7B
+Qwen/Qwen2.5-Coder-7B-Instruct
+Qwen/Qwen2.5-Coder-14B
+Qwen/Qwen2.5-Coder-14B-Instruct
+Qwen/Qwen2.5-Coder-32B
+Qwen/Qwen2.5-Coder-32B-Instruct
+Qwen/QwQ-32B-Preview
 stabilityai/FreeWilly2
 stabilityai/stable-code-3b
 stabilityai/stablecode-completion-alpha-3b
