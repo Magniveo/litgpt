@@ -2136,5 +2136,37 @@ for c in salamandra:
         copy["hf_config"]["name"] = c["hf_config"]["name"].format(kind)
         configs.append(copy)
 
+t_tech_coder = [
+    # https://huggingface.co/t-tech/T-lite-it-1.0/blob/main/config.json
+    dict(
+        name="T-lite-it-1.0{}",
+        hf_config=dict(org="t-tech", name="T-lite-it-1.0{}"),
+        block_size=32768,
+        vocab_size=151665,
+        padded_vocab_size=151936,
+        n_layer=24,
+        n_head=14,
+        n_embd=896,
+        n_query_groups=2,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        attn_bias=True,
+        norm_class_name="RMSNorm",
+        mlp_class_name="Q",
+        intermediate_size=4864,
+        norm_eps=1e-6,
+        rope_base=1000000
+    ),
+]
+
+t_tech_coder.extend(t_tech_coder)
+
+for c in t_tech_coder:
+    for kind in ("", "-Instruct"):
+        copy = deepcopy(c)
+        copy["name"] = c["name"].format(kind)
+        copy["hf_config"]["name"] = c["hf_config"]["name"].format(kind)
+        configs.append(copy)
 
 name_to_config = {config["name"]: config for config in configs}
