@@ -552,7 +552,6 @@ def convert_hf_checkpoint(
 
     config = Config.from_name(model_name)
     save_config(config, checkpoint_dir)
-
     if "falcon" in model_name:
         copy_fn = partial(copy_weights_falcon, model_name)
     elif model_name.lower().startswith("gemma-2"):
@@ -563,6 +562,10 @@ def convert_hf_checkpoint(
         qkv_weights = {}
         copy_fn = partial(copy_weights_phi, config, qkv_weights)
     elif model_name.lower().startswith(("qwen2.5","qwq")):
+        # holder to reconstitute the split q, k, v
+        qkv_weights = {}
+        copy_fn = partial(copy_weights_qwen_2_5, config, qkv_weights)
+    elif model_name.lower().startswith(("t-tech", "t-lite")):
         # holder to reconstitute the split q, k, v
         qkv_weights = {}
         copy_fn = partial(copy_weights_qwen_2_5, config, qkv_weights)

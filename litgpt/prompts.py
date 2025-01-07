@@ -326,6 +326,55 @@ class Salamandra(ChatML):
     def __init__(self):
         super().__init__("I am Salamandra, an AI language model developed at the Barcelona Supercomputing Centre (BSC) by the Language Technologies Unit. My knowledge base was last updated on August 2023. Today Date: 2024-09-30\nSoy Salamandra, un modelo lingüístico de IA desarrollado en el Barcelona Supercomputing Centre (BSC) por la Language Technologies Unit. Mi base de conocimientos se actualizó por última vez en agosto de 2023.\nSoc Salamandra, un model de llenguatge d'IA desenvolupat al Barcelona Supercomputing Centre (BSC) per la Language Technologies Unit.")
 
+class TTech(PromptStyle):
+    def apply(self, prompt: Union[str, List[Dict[str, str]]], **kwargs: str) -> str:
+
+        default_system_prompt = "Ты T-lite, виртуальный ассистент в Т-Технологии. Твоя задача - быть полезным диалоговым ассистентом."
+
+        # https://github.com/meta-llama/llama3/blob/359887376f0aaf30e433f23e25df858d8c2a9833/llama/tokenizer.py#L202-L229
+        if isinstance(prompt, str):
+            return (
+                "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+                f"{default_system_prompt}<|eot_id|>" # No newline
+                "<|start_header_id|>user<|end_header_id|>\n\n"
+                f"{prompt}<|eot_id|>" # No newline
+                "<|start_header_id|>assistant<|end_header_id|>\n\n"
+            )
+        elif isinstance(prompt, list):
+
+            def encode_header(role: str) -> List[str]:
+                return [f"<|start_header_id|>{role}<|end_header_id|>\n\n"]
+
+            def encode_message(message: Dict[str, str]) -> List[str]:
+                tokens = encode_header(message["role"])
+                # NOTE: Meta stripped this. I'm not sure I agree, but who am I to argue?
+                tokens.append(message["content"].strip())
+                tokens.append("<|eot_id|>")
+                return tokens
+
+            def has_system_prompt(messages: List[Dict[str, str]]) -> bool:
+                return messages[0].get("role", "") == "system" if len(messages) else False
+
+            tokens = ["<|begin_of_text|>"]
+            if not has_system_prompt(prompt):
+                tokens.extend(encode_message({"role": "system", "content": default_system_prompt}))
+            for i, message in enumerate(prompt):
+                if i != 0 and message["role"] == "system":
+                    raise ValueError("'system' role is only allowed at the beginning of the conversation list.")
+                if not message["role"] in ["assistant", "user", "system"]:
+                    raise ValueError(f"Unknown role: '{message['role']}'. Supported roles are 'assistant', 'user', and 'system'.")
+                tokens.extend(encode_message(message))
+            tokens.extend(encode_header("assistant"))
+            return "".join(tokens)
+        else:
+            raise ValueError(f"Unsupported prompt type: {type(prompt)}")
+
+    def stop_tokens(self, tokenizer: "Tokenizer") -> Tuple[List[int], ...]:
+        return (
+            [tokenizer.eos_id],
+            [tokenizer.token_to_id("<|eot_id|>")],
+        )
+
 
 # Maps prompt style names to PromptStyle classes
 prompt_styles: Dict[str, Type[PromptStyle]] = {
@@ -351,6 +400,8 @@ prompt_styles: Dict[str, Type[PromptStyle]] = {
     "llama3": Llama3,
     "olmo": OLMo,
     "qwen2.5": Qwen2_5,
+    "t-tech": Qwen2_5,
+    "t-lite": Qwen2_5,
     "qwen2.5-math": Qwen2_5_Math,
     "qwq": QwQ,
     "smollm2": SmolLM2,
@@ -399,6 +450,8 @@ def model_name_to_prompt_style(model_name: str) -> PromptStyle:
     if re.search(r"Qwen2\.5-Math-.*", model_name):
         return Qwen2_5_Math()
     if re.search(r"Qwen2\.5-.*", model_name):
+        return Qwen2_5()
+    if re.search(r"T-lite*", model_name):
         return Qwen2_5()
     if re.search(r"QwQ-.*", model_name):
         return QwQ()

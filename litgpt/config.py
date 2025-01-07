@@ -2327,22 +2327,22 @@ t_tech_coder = [
     dict(
         name="T-lite-it-1.0{}",
         hf_config=dict(org="t-tech", name="T-lite-it-1.0{}"),
-        block_size=32768,
-        vocab_size=151665,
-        padded_vocab_size=151936,
-        n_layer=24,
-        n_head=14,
-        n_embd=896,
-        n_query_groups=2,
-        rotary_percentage=1.0,
-        parallel_residual=False,
-        bias=False,
-        attn_bias=True,
-        norm_class_name="RMSNorm",
-        mlp_class_name="Q",
-        intermediate_size=4864,
-        norm_eps=1e-6,
-        rope_base=1000000
+        block_size=32768,  # max_position_embeddings из config
+        vocab_size=151643,
+        padded_vocab_size=151665, # не меняется
+        n_layer=28,  # num_hidden_layers из config
+        n_head=28,  # num_attention_heads из config
+        n_embd=3584,  # hidden_size из config
+        n_query_groups=4,  # num_key_value_heads из config
+        rotary_percentage=1.0,  # можно оставить
+        parallel_residual=False,  # можно оставить
+        bias=False,  # можно оставить
+        attn_bias=True,  # можно оставить
+        norm_class_name="RMSNorm",  # судя по rms_norm_eps в config
+        mlp_class_name="LLaMAMLP",  # можно оставить
+        intermediate_size=18944,  # intermediate_size из config
+        norm_eps=1e-6,  # rms_norm_eps из config
+        rope_base=1000000  # rope_theta из config
     ),
 ]
 
